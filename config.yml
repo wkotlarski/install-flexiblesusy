@@ -1,0 +1,4 @@
+versions:
+  FlexibleSUSY: 2.9.0
+  GM2Calc: 2.3.1
+  cmake: 4.0.2
