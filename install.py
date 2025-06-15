@@ -21,11 +21,16 @@ boostVersion = config["versions"]["Boost"]
 
 def install_cmake():
     global cmakeVersion, tmpDir
+    print('Installing CMake...')
     url = f'https://github.com/Kitware/CMake/releases/download/v{cmakeVersion}/cmake-{cmakeVersion}.tar.gz'
     urllib.request.urlretrieve(url, os.path.join(tmpDir, f'cmake-{cmakeVersion}.tar.gz'))
     subprocess.call(f'tar -xf cmake-{cmakeVersion}.tar.gz', cwd=tmpDir, shell=True)
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'cmake-{cmakeVersion}')
-    subprocess.call(f'./configure --prefix={installPath} -DCMAKE_USE_OPENSSL=OFF && make && make install', cwd=os.path.join(tmpDir, f'cmake-{cmakeVersion}'), shell=True)
+    err = subprocess.run(f'./bootstrap --prefix={installPath} -- -DCMAKE_USE_OPENSSL=OFF && make && make install', cwd=os.path.join(tmpDir, f'cmake-{cmakeVersion}'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('CMake installation failed')
+        sys.exit()
 
 def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
     global eigenPathInc, tmpDir
@@ -47,12 +52,16 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
             gm2Pathlib = os.path.join(gm2Path, 'lib64')
         gm2PathInc = os.path.join(gm2Path, 'include')
 
-        boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
-        if os.path.isdir(os.path.join(boostPath, 'lib')):
-            boostPathlib = os.path.join(boostPath, 'lib')
-        elif os.path.isdir(os.path.join(boostPath, 'lib64')):
-            boostPathlib = os.path.join(boostPath, 'lib64')
-        boostPathInc = os.path.join(boostPath, 'include')
+        boostConfig = ''
+        if localBoost:
+            boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
+            if os.path.isdir(os.path.join(boostPath, 'lib')):
+                boostPathlib = os.path.join(boostPath, 'lib')
+            elif os.path.isdir(os.path.join(boostPath, 'lib64')):
+                boostPathlib = os.path.join(boostPath, 'lib64')
+            boostPathlib = '--with-boost-libdir=' + boostPathlib
+            boostPathInc = '--with-boost-incdir=' + os.path.join(boostPath, 'include')
+            boostConfig = boostPathInc + ' ' + boostPathlib
 
         gslConfig = ''
         if localGSL:
@@ -62,8 +71,8 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
         for m in sys.argv[1].split(','):
             subprocess.call(f'./createmodel -f --name={m}', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
 
-        subprocess.call(f'./configure --with-models={sys.argv[1]} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} --with-boost-incdir={boostPathInc} --with-boost-libdir={boostPathlib} {gslConfig}', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
-        subprocess.call('make', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
+        subprocess.call(f'./configure --with-models={sys.argv[1]} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
+        subprocess.call('make -j2', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
 
 def install_gm2calc(localCMake, localBoost):
     global tmpDir, eigenPathInc, cmakeVersion, boostVersion
@@ -83,7 +92,12 @@ def install_gm2calc(localCMake, localBoost):
     if localBoost:
         boostFlag = '-DBOOST_ROOT=' + os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'boost-{boostVersion}')
 
-    subprocess.call(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} -DCMAKE_POSITION_INDEPENDENT_CODE=On -DEigen3_DIR={eigenPathInc} {boostFlag} && make && make install', cwd=os.path.join(tmpDir, f'GM2Calc-{gm2cVersion}', 'build'), shell=True)
+    err = subprocess.run(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} -DCMAKE_POSITION_INDEPENDENT_CODE=On -DEigen3_DIR={eigenPathInc} {boostFlag} && make && make install', cwd=os.path.join(tmpDir, f'GM2Calc-{gm2cVersion}', 'build'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('GM2Calc installation failed')
+        sys.exit()
+
 
 def install_eigen():
     global tmpDir
@@ -94,18 +108,37 @@ def install_eigen():
     subprocess.call(f'tar -xf eigen-{eigenVersion}.tar.gz', cwd=tmpDir, shell=True)
     os.makedirs(os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'))
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'eigen-{eigenVersion}')
-    subprocess.call(f'cmake .. -DCMAKE_INSTALL_PREFIX={installPath} && make && make install', cwd=os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'), shell=True)
+    err = subprocess.run(f'cmake .. -DCMAKE_INSTALL_PREFIX={installPath} && make && make install', cwd=os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('Eigen installation failed')
+        sys.exit()
 
 def install_boost():
-    global tmpDir
+    global tmpDir, boostVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'boost-{boostVersion}')
+    if os.path.exists(installPath):
+        print(f'Boost seems to be already installed locally in {installPath}. ')
+        while True:
+            installBoost = input('Do you want to reinstall it? [yes/no]: ')
+            if installBoost != "yes" and installBoost != "no":
+                print(f'please type yes or no (you typed {installBoost})')
+                continue
+            if installBoost == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installBoost == "no":
+                sys.exit()
     print('Installing Boost...')
-    boostVersion = config["versions"]["Boost"]
     boostVersionDash = "_".join(boostVersion.split("."))
     url = f'https://archives.boost.io/release/{boostVersion}/source/boost_{boostVersionDash}.tar.gz'
     urllib.request.urlretrieve(url, os.path.join(tmpDir, f'boost_{boostVersionDash}.tar.gz'))
     subprocess.call(f'tar -xf boost_{boostVersionDash}.tar.gz', cwd=tmpDir, shell=True)
-    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'boost-{boostVersion}')
-    subprocess.call(f'./bootstrap.sh && ./b2 install --prefix={installPath}', shell=True, cwd=os.path.join(tmpDir, f'boost_{boostVersionDash}'))
+    err = subprocess.run(f'./bootstrap.sh && ./b2 install --prefix={installPath}', shell=True, cwd=os.path.join(tmpDir, f'boost_{boostVersionDash}'), capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('Boost installation failed')
+        sys.exit()
 
 def install_gsl():
     global tmpDir
@@ -115,7 +148,11 @@ def install_gsl():
     urllib.request.urlretrieve(url, os.path.join(tmpDir, f'gsl-{gslVersion}.tar.gz'))
     subprocess.call(f'tar -xf gsl-{gslVersion}.tar.gz', cwd=tmpDir, shell=True)
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'gsl-{gslVersion}')
-    subprocess.call(f'./configure --prefix={installPath} && make && make install', shell=True, cwd=os.path.join(tmpDir, f'gsl-{gslVersion}'))
+    err = subprocess.run(f'./configure --prefix={installPath} && make && make install', shell=True, cwd=os.path.join(tmpDir, f'gsl-{gslVersion}'), capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('GSL installation failed')
+        sys.exit()
 
 def check_cxx():
     print('Checking C++ compiler: ', end='')
@@ -166,10 +203,20 @@ if __name__ == '__main__':
 
     install_eigen()
 
-    localBoost = True
-    runBoostTest = subprocess.run(['g++', '-o boost_test', os.path.join('test', 'boost.cpp')])
+    localBoost = False
+    runBoostTest = subprocess.run(['g++', f'-o{os.path.join(tmpDir, "boost_test")}', os.path.join('test', 'boost.cpp')], capture_output=True)
     if runBoostTest.returncode != 0:
-        install_boost()
+        print("FlexibleSUSY and some of the dependencies require boost which doesn't seem to be installed on this system")
+        print("We recommend you install it using your linux disctibution package manager or I can try installing it from source")
+        while True:
+            installBoost = input('Install Boost from source? [yes/no]: ')
+            if installBoost != "yes" and installBoost != "no":
+                print(f'please type yes or no (you typed {installBoost})')
+                continue
+            if installBoost:
+                localBoost = True
+                install_boost()
+            break
 
     localCMake = False
     if shutil.which("cmake") == None:
