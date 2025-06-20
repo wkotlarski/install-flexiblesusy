@@ -19,6 +19,8 @@ eigenPathInc = os.path.join(depsPath, f'eigen-{eigenVersion}', 'include', 'eigen
 cmakeVersion = config["versions"]["cmake"]
 boostVersion = config["versions"]["Boost"]
 
+QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
+
 def install_cmake():
     global cmakeVersion, tmpDir
     print('Installing CMake...')
@@ -36,53 +38,64 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
     global eigenPathInc, tmpDir
     fsVersion = config["versions"]["FlexibleSUSY"]
     fsDir = f'FlexibleSUSY-{fsVersion}'
-    if os.path.isdir(fsDir):
-        print(f'{fsDir} directory exists. Do you want to delete it?')
-    else:
+    if not os.path.exists(fsDir):
         url = f'https://github.com/FlexibleSUSY/FlexibleSUSY/archive/refs/tags/v{fsVersion}.tar.gz'
         urllib.request.urlretrieve(url, os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}.tar.gz'))
-        subprocess.call(f'tar -xf FlexibleSUSY-{fsVersion}.tar.gz', cwd=tmpDir, shell=True)
-        gm2cVersion = config["versions"]["GM2Calc"]
-        boostVersion = config["versions"]["Boost"]
-        depsPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps")
-        gm2Path = os.path.join(depsPath, f'GM2Calc-{gm2cVersion}')
-        if os.path.isdir(os.path.join(gm2Path, 'lib')):
-            gm2Pathlib = os.path.join(gm2Path, 'lib')
-        elif os.path.isdir(os.path.join(gm2Path, 'lib64')):
-            gm2Pathlib = os.path.join(gm2Path, 'lib64')
-        gm2PathInc = os.path.join(gm2Path, 'include')
+        subprocess.call(f'tar -xf FlexibleSUSY-{fsVersion}.tar.gz -C {pathlib.Path(__file__).parent.resolve()}', cwd=tmpDir, shell=True)
+    gm2cVersion = config["versions"]["GM2Calc"]
+    boostVersion = config["versions"]["Boost"]
+    depsPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps")
+    gm2Path = os.path.join(depsPath, f'GM2Calc-{gm2cVersion}')
+    if os.path.isdir(os.path.join(gm2Path, 'lib')):
+        gm2Pathlib = os.path.join(gm2Path, 'lib')
+    elif os.path.isdir(os.path.join(gm2Path, 'lib64')):
+        gm2Pathlib = os.path.join(gm2Path, 'lib64')
+    gm2PathInc = os.path.join(gm2Path, 'include')
 
-        boostConfig = ''
-        if localBoost:
-            boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
-            if os.path.isdir(os.path.join(boostPath, 'lib')):
-                boostPathlib = os.path.join(boostPath, 'lib')
-            elif os.path.isdir(os.path.join(boostPath, 'lib64')):
-                boostPathlib = os.path.join(boostPath, 'lib64')
-            boostPathlib = '--with-boost-libdir=' + boostPathlib
-            boostPathInc = '--with-boost-incdir=' + os.path.join(boostPath, 'include')
-            boostConfig = boostPathInc + ' ' + boostPathlib
+    boostConfig = ''
+    if localBoost:
+        boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
+        if os.path.isdir(os.path.join(boostPath, 'lib')):
+            boostPathlib = os.path.join(boostPath, 'lib')
+        elif os.path.isdir(os.path.join(boostPath, 'lib64')):
+            boostPathlib = os.path.join(boostPath, 'lib64')
+        boostPathlib = '--with-boost-libdir=' + boostPathlib
+        boostPathInc = '--with-boost-incdir=' + os.path.join(boostPath, 'include')
+        boostConfig = boostPathInc + ' ' + boostPathlib
 
-        gslConfig = ''
-        if localGSL:
-            gslVersion = config["versions"]["GSL"]
-            gslConfig = '--with-gm2calc-incdir=' + os.path.join(depsPath, f'gsl-{gslVersion}', 'bin', 'gsl-config')
+    gslConfig = ''
+    if localGSL:
+        gslVersion = config["versions"]["GSL"]
+        gslConfig = '--with-gm2calc-incdir=' + os.path.join(depsPath, f'gsl-{gslVersion}', 'bin', 'gsl-config')
 
-        for m in sys.argv[1].split(','):
-            subprocess.call(f'./createmodel -f --name={m}', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
+    fsInstallPath = os.path.join(pathlib.Path(__file__).parent.resolve(), f'FlexibleSUSY-{fsVersion}')
+    for m in sys.argv[1].split(','):
+        subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-        subprocess.call(f'./configure --with-models={sys.argv[1]} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
-        subprocess.call('make -j2', cwd=os.path.join(tmpDir, f'FlexibleSUSY-{fsVersion}'), shell=True)
+    subprocess.call(f'./configure --with-models={sys.argv[1]} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call('make -j2', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
     global tmpDir, eigenPathInc, cmakeVersion, boostVersion
-    print('Installing GM2Calc...')
     gm2cVersion = config["versions"]["GM2Calc"]
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'GM2Calc-{gm2cVersion}')
+    if os.path.exists(installPath):
+        print(f'GM2Calc seems to be already installed locally in {installPath}. ')
+        while True:
+            installGM2Calc = input('Do you want to reinstall it? [yes/no]: ')
+            if installGM2Calc != "yes" and installGM2Calc != "no":
+                print(f'please type yes or no (you typed {installGM2Calc})')
+                continue
+            if installGM2Calc == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installGM2Calc == "no":
+                return None
+    print('Installing GM2Calc...')
     url = f'https://github.com/GM2Calc/GM2Calc/archive/refs/tags/v{gm2cVersion}.tar.gz'
     urllib.request.urlretrieve(url, os.path.join(tmpDir, f'GM2Calc-{gm2cVersion}.tar.gz'))
     subprocess.call(f'tar -xf GM2Calc-{gm2cVersion}.tar.gz', cwd=tmpDir, shell=True)
     os.makedirs(os.path.join(tmpDir, f'GM2Calc-{gm2cVersion}', 'build'))
-    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'GM2Calc-{gm2cVersion}')
 
     cmakeCMD = 'cmake'
     if localCMake:
@@ -220,8 +233,17 @@ if __name__ == '__main__':
 
     localCMake = False
     if shutil.which("cmake") == None:
-        install_cmake()
-        localCMake = True
+        print('cmake not found in path')
+        print(QUESTION)
+        while True:
+            installCMake = input('Install CMake from source? [yes/no]: ')
+            if installCMake != "yes" and installCMake != "no":
+                print(f'please type yes or no (you typed {installCMake})')
+                continue
+            if installCMake:
+                localCMake = True
+                install_cmake()
+            break
 
     enableGM2Calc = False
     while True:
