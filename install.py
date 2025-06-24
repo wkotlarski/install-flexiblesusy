@@ -215,7 +215,7 @@ if __name__ == '__main__':
             if installGSL != "yes" and installGSL != "no":
                 print(f'please type yes or no (you typed {installGSL})')
                 continue
-            if installGSL:
+            if installGSL == "yes":
                 localGSL = True
                 install_gsl()
             break
@@ -232,7 +232,7 @@ if __name__ == '__main__':
             if installBoost != "yes" and installBoost != "no":
                 print(f'please type yes or no (you typed {installBoost})')
                 continue
-            if installBoost:
+            if installBoost == "yes":
                 localBoost = True
                 install_boost()
             break
@@ -246,7 +246,7 @@ if __name__ == '__main__':
             if installCMake != "yes" and installCMake != "no":
                 print(f'please type yes or no (you typed {installCMake})')
                 continue
-            if installCMake:
+            if installCMake == "yes":
                 localCMake = True
                 install_cmake()
             break
@@ -257,7 +257,7 @@ if __name__ == '__main__':
         if installGM2Calc != "yes" and installGM2Calc != "no":
             print(f'please type yes or no (you typed {installGM2Calc}')
             continue
-        if installGM2Calc:
+        if installGM2Calc == 'yes':
             install_gm2calc(localCMake, localBoost)
             enableGM2Calc = True
         break
