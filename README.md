@@ -13,5 +13,16 @@ python3 install.py SM,MSSM
 ```
 The last argument is a `,`-separated list of models you'd like to configure FlexibleSUSY with.
 
+## Dependencies
+
+The script can automatically install following external dependencies
+
+- [GM2Calc](https://github.com/GM2Calc/GM2Calc)
+
+Additionally, it can install following system dependencies (although we recommend that a user installs them usings system's package manager)
+
+- Boost
+- GSL
+
 ## Getting help
 If the script doesn't work for you, please create an [Issue](https://github.com/wkotlarski/install-flexiblesusy/issues)
