@@ -7,6 +7,7 @@ import re
 import urllib.request
 import tempfile
 import pathlib
+import argparse
 
 tmpDir = tempfile.mkdtemp()
 depsPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps")
@@ -20,6 +21,11 @@ cmakeVersion = config["versions"]["cmake"]
 boostVersion = config["versions"]["Boost"]
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
+
+parser = argparse.ArgumentParser()
+parser.add_argument('models', help='comma separated list of models to be passed to FlexibleSUSY --with-models option')
+parser.add_argument('-j', '--jobs', type=int, required=False, help='parallelization')
+args = parser.parse_args()
 
 def install_cmake():
     global cmakeVersion, tmpDir
@@ -69,11 +75,11 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
         gslConfig = '--with-gm2calc-incdir=' + os.path.join(depsPath, f'gsl-{gslVersion}', 'bin', 'gsl-config')
 
     fsInstallPath = os.path.join(pathlib.Path(__file__).parent.resolve(), f'FlexibleSUSY-{fsVersion}')
-    for m in sys.argv[1].split(','):
+    for m in args.models.split(','):
         subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-    subprocess.call(f'./configure --with-models={sys.argv[1]} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
-    subprocess.call('make -j2', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'./configure --with-models={args.models} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'make -j{int(args.jobs)}', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
     global tmpDir, eigenPathInc, cmakeVersion, boostVersion
