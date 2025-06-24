@@ -24,7 +24,7 @@ QUESTION = 'We recommend you install it using your linux disctibution package ma
 
 parser = argparse.ArgumentParser()
 parser.add_argument('models', help='comma separated list of models to be passed to FlexibleSUSY --with-models option')
-parser.add_argument('-j', '--jobs', type=int, required=False, help='parallelization')
+parser.add_argument('-j', '--jobs', type=int, default=1, required=False, help='parallelization')
 args = parser.parse_args()
 
 def install_cmake():
