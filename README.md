@@ -5,7 +5,7 @@
 While this allows to use the state-of-the-art computations provided by these libraries and avoid mistakes caused by providing our own functions for doing, for example, basic matrix manipulations it also means that its instalation is not so straightword.
 
 This script helps installing FlexibleSUSY on Linux.
-  
+
 ## Usage
 Example use
 ```
@@ -18,6 +18,7 @@ The last argument is a `,`-separated list of models you'd like to configure Flex
 The script can automatically install following external dependencies
 
 - [GM2Calc](https://github.com/GM2Calc/GM2Calc)
+- [Himalaya](https://github.com/Himalaya-Library/Himalaya)
 
 Additionally, it can install following system dependencies (although we recommend that a user installs them usings system's package manager)
 

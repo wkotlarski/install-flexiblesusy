@@ -19,6 +19,7 @@ eigenVersion = config["versions"]["Eigen"]
 eigenPathInc = os.path.join(depsPath, f'eigen-{eigenVersion}', 'include', 'eigen3')
 cmakeVersion = config["versions"]["cmake"]
 boostVersion = config["versions"]["Boost"]
+himalayaVersion = config["versions"]["Himalaya"]
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
 
@@ -40,8 +41,8 @@ def install_cmake():
         print('CMake installation failed')
         sys.exit()
 
-def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
-    global eigenPathInc, tmpDir
+def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya):
+    global eigenPathInc, tmpDir, himalayaVersion
     fsVersion = config["versions"]["FlexibleSUSY"]
     fsDir = f'FlexibleSUSY-{fsVersion}'
     if not os.path.exists(fsDir):
@@ -51,12 +52,28 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
     gm2cVersion = config["versions"]["GM2Calc"]
     boostVersion = config["versions"]["Boost"]
     depsPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps")
-    gm2Path = os.path.join(depsPath, f'GM2Calc-{gm2cVersion}')
-    if os.path.isdir(os.path.join(gm2Path, 'lib')):
-        gm2Pathlib = os.path.join(gm2Path, 'lib')
-    elif os.path.isdir(os.path.join(gm2Path, 'lib64')):
-        gm2Pathlib = os.path.join(gm2Path, 'lib64')
-    gm2PathInc = os.path.join(gm2Path, 'include')
+
+    gm2Pathlib = ''
+    gm2PathInc = ''
+    if enableGM2Calc:
+        gm2Path = os.path.join(depsPath, f'GM2Calc-{gm2cVersion}')
+        if os.path.isdir(os.path.join(gm2Path, 'lib')):
+            gm2Pathlib = os.path.join(gm2Path, 'lib')
+        elif os.path.isdir(os.path.join(gm2Path, 'lib64')):
+            gm2Pathlib = os.path.join(gm2Path, 'lib64')
+        gm2PathInc = '--with-gm2calc-incdir=' + os.path.join(gm2Path, 'include')
+        gm2Pathlib = '--with-gm2calc-libdir=' + gm2Pathlib
+
+    himalayaLibPath = ''
+    himalayaIncPath = ''
+    if enableHimalaya:
+        himalayaPath = os.path.join(depsPath, f'Himalaya-{himalayaVersion}')
+        if os.path.isdir(os.path.join(himalayaPath, 'lib')):
+            himalayaLibPath = os.path.join(himalayaPath, 'lib')
+        elif os.path.isdir(os.path.join(himalayaPath, 'lib64')):
+            himalayaLibPath = os.path.join(himalayaPath, 'lib64')
+        himalayaIncPath = '--with-himalaya-incdir=' + os.path.join(himalayaPath, 'include')
+        himalayaLibPath = '--with-himalaya-libdir=' + himalayaLibPath
 
     boostConfig = ''
     if localBoost:
@@ -78,7 +95,7 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc):
     for m in args.models.split(','):
         subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-    subprocess.call(f'./configure --with-models={args.models} --with-gm2calc-libdir={gm2Pathlib} --with-gm2calc-incdir={gm2PathInc} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
     subprocess.call(f'make -j{int(args.jobs)}', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
@@ -173,6 +190,26 @@ def install_gsl():
         print('GSL installation failed')
         sys.exit()
 
+def install_himalaya(localCMake):
+    global tmpDir, eigenPathInc
+    print('Installing Himalaya...')
+    himalayaVersion = config["versions"]["Himalaya"]
+    url = f'https://github.com/Himalaya-Library/Himalaya/archive/refs/tags/{himalayaVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'Himalaya-{himalayaVersion}.tar.gz'))
+    subprocess.call(f'tar -xf Himalaya-{himalayaVersion}.tar.gz', cwd=tmpDir, shell=True)
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'Himalaya-{himalayaVersion}')
+    os.makedirs(os.path.join(tmpDir, f'Himalaya-{himalayaVersion}', 'build'))
+
+    cmakeCMD = 'cmake'
+    if localCMake:
+        cmakeCMD = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'cmake-{cmakeVersion}', 'bin', 'cmake')
+
+    err = subprocess.run(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} -DEigen3_DIR={eigenPathInc} && make && make install', cwd=os.path.join(tmpDir, f'Himalaya-{himalayaVersion}', 'build'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('Himalaya installation failed')
+        sys.exit()
+
 def check_cxx():
     print('Checking C++ compiler: ', end='')
     if shutil.which('g++'):
@@ -262,4 +299,15 @@ if __name__ == '__main__':
             enableGM2Calc = True
         break
 
-    install_flexiblesusy(localBoost, localGSL, enableGM2Calc)
+    enableHimalaya = False
+    while True:
+        installHimalaya = input('Install Himalaya? [yes/no]: ')
+        if installHimalaya != "yes" and installHimalaya != "no":
+            print(f'please type yes or no (you typed {installHimalaya}')
+            continue
+        if installHimalaya == 'yes':
+            install_himalaya(localCMake)
+            enableHimalaya = True
+        break
+
+    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya)

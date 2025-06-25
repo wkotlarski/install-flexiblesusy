@@ -1,6 +1,7 @@
 versions:
   FlexibleSUSY: 2.9.0
   GM2Calc: 2.3.1
+  Himalaya: 4.2.3
   cmake: 4.0.3
   Eigen: 3.4.0
   Boost: 1.88.0
