@@ -20,6 +20,7 @@ eigenPathInc = os.path.join(depsPath, f'eigen-{eigenVersion}', 'include', 'eigen
 cmakeVersion = config["versions"]["cmake"]
 boostVersion = config["versions"]["Boost"]
 himalayaVersion = config["versions"]["Himalaya"]
+collierVersion = config["versions"]["COLLIER"]
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
 
@@ -41,8 +42,8 @@ def install_cmake():
         print('CMake installation failed')
         sys.exit()
 
-def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya):
-    global eigenPathInc, tmpDir, himalayaVersion
+def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools):
+    global eigenPathInc, tmpDir, himalayaVersion, collierVersion
     fsVersion = config["versions"]["FlexibleSUSY"]
     fsDir = f'FlexibleSUSY-{fsVersion}'
     if not os.path.exists(fsDir):
@@ -75,6 +76,25 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya):
         himalayaIncPath = '--with-himalaya-incdir=' + os.path.join(himalayaPath, 'include')
         himalayaLibPath = '--with-himalaya-libdir=' + himalayaLibPath
 
+    collierLibPath = ''
+    collierIncPath = ''
+    if enableCollier:
+        collierPath = os.path.join(depsPath, f'COLLIER-{collierVersion}')
+        if os.path.isdir(os.path.join(collierPath, 'lib')):
+            collierLibPath = os.path.join(collierPath, 'lib')
+        elif os.path.isdir(os.path.join(collierPathlPath, 'lib64')):
+            collierLibPath = os.path.join(collierPath, 'lib64')
+        collierIncPath = '--with-collier-incdir=' + os.path.join(collierPath, 'include')
+        collierLibPath = '--with-collier-libdir=' + collierLibPath
+
+    enableLoopLibs = ''
+    if enableCollier and enableLoopTools:
+        enableLoopLibs = '--with-loop-libraries=collier,looptools'
+    elif enableCollier:
+        enableLoopLibs = '--with-loop-libraries=collier'
+    elif enableLoopTools:
+        enableLoopLibs = '--with-loop-libraries=looptools'
+
     boostConfig = ''
     if localBoost:
         boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
@@ -95,7 +115,7 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya):
     for m in args.models.split(','):
         subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} {enableLoopLibs} {collierLibPath} {collierIncPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
     subprocess.call(f'make -j{int(args.jobs)}', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
@@ -135,7 +155,7 @@ def install_gm2calc(localCMake, localBoost):
         sys.exit()
 
 
-def install_eigen():
+def install_eigen(localCMake):
     global tmpDir
     print('Installing Eigen...')
     eigenVersion = config["versions"]["Eigen"]
@@ -144,7 +164,12 @@ def install_eigen():
     subprocess.call(f'tar -xf eigen-{eigenVersion}.tar.gz', cwd=tmpDir, shell=True)
     os.makedirs(os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'))
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'eigen-{eigenVersion}')
-    err = subprocess.run(f'cmake .. -DCMAKE_INSTALL_PREFIX={installPath} && make && make install', cwd=os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'), shell=True, capture_output=True)
+
+    cmakeCMD = 'cmake'
+    if localCMake:
+        cmakeCMD = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'cmake-{cmakeVersion}', 'bin', 'cmake')
+
+    err = subprocess.run(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} && make && make install', cwd=os.path.join(tmpDir, f'eigen-{eigenVersion}', 'build'), shell=True, capture_output=True)
     if err.returncode != 0:
         print(err.stderr)
         print('Eigen installation failed')
@@ -190,14 +215,59 @@ def install_gsl():
         print('GSL installation failed')
         sys.exit()
 
+def install_collier(localCMake):
+    global tmpDir, collierVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'COLLIER-{collierVersion}')
+    if os.path.exists(installPath):
+        print(f'COLLIER seems to be already installed locally in {installPath}. ')
+        while True:
+            installCOLLIER = input('Do you want to reinstall it? [yes/no]: ')
+            if installCOLLIER != "yes" and installCOLLIER != "no":
+                print(f'please type yes or no (you typed {installCOLLIER})')
+                continue
+            if installCOLLIER == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installCOLLIER == "no":
+                return None
+    print('Installing Collier...')
+    url = f'https://collier.hepforge.org/downloads/collier-{collierVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'collier-{collierVersion}.tar.gz'))
+    subprocess.call(f'tar -xf collier-{collierVersion}.tar.gz', cwd=tmpDir, shell=True)
+    buildPath = os.path.join(tmpDir, f'COLLIER-{collierVersion}', 'build')
+    if not os.path.exists(buildPath):
+        os.makedirs(buildPath)
+
+    cmakeCMD = 'cmake'
+    if localCMake:
+        cmakeCMD = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'cmake-{cmakeVersion}', 'bin', 'cmake')
+
+    err = subprocess.run(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} -Dstatic=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON && make && make install', cwd=os.path.join(tmpDir, f'COLLIER-{collierVersion}', 'build'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('COLLIER installation failed')
+        sys.exit()
+
 def install_himalaya(localCMake):
-    global tmpDir, eigenPathInc
+    global tmpDir, eigenPathInc, himalayaVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'Himalaya-{himalayaVersion}')
+    if os.path.exists(installPath):
+        print(f'Himalaya seems to be already installed locally in {installPath}. ')
+        while True:
+            installHimalaya = input('Do you want to reinstall it? [yes/no]: ')
+            if installHimalaya != "yes" and installHimalaya != "no":
+                print(f'please type yes or no (you typed {installHimalaya})')
+                continue
+            if installHimalaya == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installHimalaya == "no":
+                return None
     print('Installing Himalaya...')
     himalayaVersion = config["versions"]["Himalaya"]
     url = f'https://github.com/Himalaya-Library/Himalaya/archive/refs/tags/{himalayaVersion}.tar.gz'
     urllib.request.urlretrieve(url, os.path.join(tmpDir, f'Himalaya-{himalayaVersion}.tar.gz'))
     subprocess.call(f'tar -xf Himalaya-{himalayaVersion}.tar.gz', cwd=tmpDir, shell=True)
-    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'Himalaya-{himalayaVersion}')
     os.makedirs(os.path.join(tmpDir, f'Himalaya-{himalayaVersion}', 'build'))
 
     cmakeCMD = 'cmake'
@@ -257,7 +327,6 @@ if __name__ == '__main__':
                 install_gsl()
             break
 
-    install_eigen()
 
     localBoost = False
     runBoostTest = subprocess.run(['g++', f'-o{os.path.join(tmpDir, "boost_test")}', os.path.join('test', 'boost.cpp')], capture_output=True)
@@ -288,6 +357,8 @@ if __name__ == '__main__':
                 install_cmake()
             break
 
+    install_eigen(localCMake)
+
     enableGM2Calc = False
     while True:
         installGM2Calc = input('Install GM2Calc? [yes/no]: ')
@@ -310,4 +381,15 @@ if __name__ == '__main__':
             enableHimalaya = True
         break
 
-    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya)
+    enableCollier = False
+    while True:
+        installCollier = input('Install Collier? [yes/no]: ')
+        if installCollier != "yes" and installCollier != "no":
+            print(f'please type yes or no (you typed {installCollier}')
+            continue
+        if installCollier == 'yes':
+            install_collier(localCMake)
+            enableCollier = True
+        break
+
+    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, False)

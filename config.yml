@@ -6,3 +6,4 @@ versions:
   Eigen: 3.4.0
   Boost: 1.88.0
   GSL: 2.8
+  COLLIER: 1.2.8
