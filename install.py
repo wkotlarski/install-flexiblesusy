@@ -23,6 +23,9 @@ himalayaVersion = config["versions"]["Himalaya"]
 collierVersion = config["versions"]["COLLIER"]
 ltVersion = config["versions"]["LoopTools"]
 htVersion = config["versions"]["HiggsTools"]
+hbVersion = config["versions"]["HiggsBounds"]
+hsVersion = config["versions"]["HiggsSignals"]
+
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
 
@@ -330,6 +333,48 @@ def install_himalaya(localCMake):
         print('Himalaya installation failed')
         sys.exit()
 
+def download_hbdb():
+    global tmpDir, hbVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'hbdataset-v{hbVersion}')
+    if os.path.exists(installPath):
+        print(f'HiggsBounds database seems to be already downloaded at {installPath}')
+        while True:
+            downloadHB = input('Do you want to redownload it? [yes/no]: ')
+            if downloadHB != "yes" and downloadHB != "no":
+                print(f'please type yes or no (you typed {downloadHB})')
+                continue
+            if downloadHB == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif downloadHB == "no":
+                return None
+    print('Download HiggsBounds...')
+    url = f'https://gitlab.com/higgsbounds/hbdataset/-/archive/v{hbVersion}/hbdataset-v{hbVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'hbdataset-v{hbVersion}.tar.gz'))
+    subprocess.call(f'tar -xf hbdataset-v{hbVersion}.tar.gz', cwd=tmpDir, shell=True)
+    shutil.move(os.path.join(tmpDir, f'hbdataset-v{hbVersion}'), os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps"))
+
+def download_hsdb():
+    global tmpDir, hsVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'hsdataset-v{hsVersion}')
+    if os.path.exists(installPath):
+        print(f'HiggsSignals database seems to be already downloaded at {installPath}')
+        while True:
+            downloadHS = input('Do you want to redownload it? [yes/no]: ')
+            if downloadHS != "yes" and downloadHS != "no":
+                print(f'please type yes or no (you typed {downloadHS})')
+                continue
+            if downloadHS == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif downloadHS == "no":
+                return None
+    print('Downloading HiggsSignals...')
+    url = f'https://gitlab.com/higgsbounds/hsdataset/-/archive/v{hsVersion}/hsdataset-v{hsVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'hsdataset-v{hsVersion}.tar.gz'))
+    subprocess.call(f'tar -xf hsdataset-v{hsVersion}.tar.gz', cwd=tmpDir, shell=True)
+    shutil.move(os.path.join(tmpDir, f'hsdataset-v{hsVersion}'), os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps"))
+
 def install_higgstools():
     global tmpDir
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'HiggsTools-{htVersion}')
@@ -440,28 +485,6 @@ if __name__ == '__main__':
 
     install_eigen(localCMake)
 
-    enableGM2Calc = False
-    while True:
-        installGM2Calc = input('Include GM2Calc? [yes/no]: ')
-        if installGM2Calc != "yes" and installGM2Calc != "no":
-            print(f'please type yes or no (you typed {installGM2Calc}')
-            continue
-        if installGM2Calc == 'yes':
-            install_gm2calc(localCMake, localBoost)
-            enableGM2Calc = True
-        break
-
-    enableHimalaya = False
-    while True:
-        installHimalaya = input('Include Himalaya? [yes/no]: ')
-        if installHimalaya != "yes" and installHimalaya != "no":
-            print(f'please type yes or no (you typed {installHimalaya}')
-            continue
-        if installHimalaya == 'yes':
-            install_himalaya(localCMake)
-            enableHimalaya = True
-        break
-
     enableCollier = False
     while True:
         installCollier = input('Include Collier? [yes/no]: ')
@@ -493,6 +516,46 @@ if __name__ == '__main__':
         if installHiggsTools == 'yes':
             install_higgstools()
             enableHiggsTools = True
+        break
+
+    while True:
+        downloadHBDb = input('Download HiggsBounds database? [yes/no]: ')
+        if downloadHBDb != "yes" and downloadHBDb != "no":
+            print(f'please type yes or no (you typed {downloadHBDb}')
+            continue
+        if downloadHBDb == 'yes':
+            download_hbdb()
+        break
+
+    while True:
+        downloadHSDb = input('Download HiggsSignals database? [yes/no]: ')
+        if downloadHSDb != "yes" and downloadHSDb != "no":
+            print(f'please type yes or no (you typed {downloadHSDb}')
+            continue
+        if downloadHSDb == 'yes':
+            download_hsdb()
+        break
+
+    enableGM2Calc = False
+    while True:
+        installGM2Calc = input('Include GM2Calc? [yes/no]: ')
+        if installGM2Calc != "yes" and installGM2Calc != "no":
+            print(f'please type yes or no (you typed {installGM2Calc}')
+            continue
+        if installGM2Calc == 'yes':
+            install_gm2calc(localCMake, localBoost)
+            enableGM2Calc = True
+        break
+
+    enableHimalaya = False
+    while True:
+        installHimalaya = input('Include Himalaya? [yes/no]: ')
+        if installHimalaya != "yes" and installHimalaya != "no":
+            print(f'please type yes or no (you typed {installHimalaya}')
+            continue
+        if installHimalaya == 'yes':
+            install_himalaya(localCMake)
+            enableHimalaya = True
         break
 
     install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools, enableHiggsTools)

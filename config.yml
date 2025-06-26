@@ -1,10 +1,12 @@
 versions:
   FlexibleSUSY: 2.9.0
-  GM2Calc: 2.3.1
-  Himalaya: 4.2.3
   COLLIER: 1.2.8
   LoopTools: 2.16
   HiggsTools: 1.2
+  HiggsSignals: 1.1
+  HiggsBounds: 1.6
+  GM2Calc: 2.3.1
+  Himalaya: 4.2.3
   cmake: 4.0.3
   Eigen: 3.4.0
   Boost: 1.88.0
