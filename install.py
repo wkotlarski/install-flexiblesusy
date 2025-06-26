@@ -22,6 +22,7 @@ boostVersion = config["versions"]["Boost"]
 himalayaVersion = config["versions"]["Himalaya"]
 collierVersion = config["versions"]["COLLIER"]
 ltVersion = config["versions"]["LoopTools"]
+htVersion = config["versions"]["HiggsTools"]
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
 
@@ -43,7 +44,7 @@ def install_cmake():
         print('CMake installation failed')
         sys.exit()
 
-def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools):
+def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools, enableHiggsTools):
     global eigenPathInc, tmpDir, himalayaVersion, collierVersion, ltVersion
     fsVersion = config["versions"]["FlexibleSUSY"]
     fsDir = f'FlexibleSUSY-{fsVersion}'
@@ -107,6 +108,17 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, en
     elif enableLoopTools:
         enableLoopLibs = '--with-loop-libraries=looptools'
 
+    htLibPath = ''
+    htIncPath = ''
+    if enableHiggsTools:
+        htPath = os.path.join(depsPath, f'HiggsTools-{htVersion}')
+        if os.path.isdir(os.path.join(htPath, 'lib')):
+            htLibPath = os.path.join(htPath, 'lib')
+        elif os.path.isdir(os.path.join(htPath, 'lib64')):
+            htLibPath = os.path.join(htPath, 'lib64')
+        htIncPath = '--with-higgstools-incdir=' + os.path.join(htPath, 'include')
+        htLibPath = '--with-higgstools-libdir=' + htLibPath
+
     boostConfig = ''
     if localBoost:
         boostPath = os.path.join(depsPath, f'boost-{boostVersion}')
@@ -127,7 +139,7 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, en
     for m in args.models.split(','):
         subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} {enableLoopLibs} {collierLibPath} {collierIncPath} {ltIncPath} {ltLibPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} {enableLoopLibs} {collierLibPath} {collierIncPath} {ltIncPath} {ltLibPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig} {htIncPath} {htLibPath}', cwd=fsInstallPath, shell=True)
     subprocess.call(f'make -j{int(args.jobs)}', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
@@ -135,7 +147,7 @@ def install_gm2calc(localCMake, localBoost):
     gm2cVersion = config["versions"]["GM2Calc"]
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'GM2Calc-{gm2cVersion}')
     if os.path.exists(installPath):
-        print(f'GM2Calc seems to be already installed locally in {installPath}. ')
+        print(f'GM2Calc seems to be already installed locally in {installPath}')
         while True:
             installGM2Calc = input('Do you want to reinstall it? [yes/no]: ')
             if installGM2Calc != "yes" and installGM2Calc != "no":
@@ -231,7 +243,7 @@ def install_collier(localCMake):
     global tmpDir, collierVersion
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'COLLIER-{collierVersion}')
     if os.path.exists(installPath):
-        print(f'COLLIER seems to be already installed locally in {installPath}. ')
+        print(f'COLLIER seems to be already installed locally in {installPath}')
         while True:
             installCOLLIER = input('Do you want to reinstall it? [yes/no]: ')
             if installCOLLIER != "yes" and installCOLLIER != "no":
@@ -264,7 +276,7 @@ def install_looptools():
     global tmpDir, ltVersion
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'LoopTools-{ltVersion}')
     if os.path.exists(installPath):
-        print(f'LoopTools seems to be already installed locally in {installPath}. ')
+        print(f'LoopTools seems to be already installed locally in {installPath}')
         while True:
             installLT = input('Do you want to reinstall it? [yes/no]: ')
             if installLT != "yes" and installLT != "no":
@@ -290,7 +302,7 @@ def install_himalaya(localCMake):
     global tmpDir, eigenPathInc, himalayaVersion
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'Himalaya-{himalayaVersion}')
     if os.path.exists(installPath):
-        print(f'Himalaya seems to be already installed locally in {installPath}. ')
+        print(f'Himalaya seems to be already installed locally in {installPath}')
         while True:
             installHimalaya = input('Do you want to reinstall it? [yes/no]: ')
             if installHimalaya != "yes" and installHimalaya != "no":
@@ -316,6 +328,37 @@ def install_himalaya(localCMake):
     if err.returncode != 0:
         print(err.stderr)
         print('Himalaya installation failed')
+        sys.exit()
+
+def install_higgstools():
+    global tmpDir
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'HiggsTools-{htVersion}')
+    if os.path.exists(installPath):
+        print(f'HiggsTools seems to be already installed locally in {installPath}')
+        while True:
+            installHiggsTools = input('Do you want to reinstall it? [yes/no]: ')
+            if installHiggsTools != "yes" and installHiggsTools != "no":
+                print(f'please type yes or no (you typed {installHimalaya})')
+                continue
+            if installHiggsTools == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installHiggsTools == "no":
+                return None
+    print('Installing HiggsTools...')
+    url = f'https://gitlab.com/higgsbounds/higgstools/-/archive/v{htVersion}/higgstools-v{htVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'HiggsTools-{htVersion}.tar.gz'))
+    subprocess.call(f'tar -xf HiggsTools-{htVersion}.tar.gz', cwd=tmpDir, shell=True)
+    os.makedirs(os.path.join(tmpDir, f'higgstools-v{htVersion}', 'build'))
+
+    cmakeCMD = 'cmake'
+    if localCMake:
+        cmakeCMD = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'cmake-{cmakeVersion}', 'bin', 'cmake')
+
+    err = subprocess.run(f'{cmakeCMD} .. -DCMAKE_INSTALL_PREFIX={installPath} && make && make install', cwd=os.path.join(tmpDir, f'higgstools-v{htVersion}', 'build'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('HiggsTools installation failed')
         sys.exit()
 
 def check_cxx():
@@ -441,4 +484,15 @@ if __name__ == '__main__':
             enableLoopTools = True
         break
 
-    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools)
+    enableHiggsTools = False
+    while True:
+        installHiggsTools = input('Include HiggsTools? [yes/no]: ')
+        if installHiggsTools != "yes" and installHiggsTools != "no":
+            print(f'please type yes or no (you typed {installHiggsTools}')
+            continue
+        if installHiggsTools == 'yes':
+            install_higgstools()
+            enableHiggsTools = True
+        break
+
+    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools, enableHiggsTools)
