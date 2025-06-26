@@ -20,6 +20,7 @@ The script can automatically install following external dependencies
 - [GM2Calc](https://github.com/GM2Calc/GM2Calc)
 - [Himalaya](https://github.com/Himalaya-Library/Himalaya)
 - [COLLIER](https://collier.hepforge.org)
+- [LoopTools](https://feynarts.de/looptools)
 
 Additionally, it can install following system dependencies (although we recommend that a user installs them usings system's package manager)
 

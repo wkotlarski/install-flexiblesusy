@@ -21,6 +21,7 @@ cmakeVersion = config["versions"]["cmake"]
 boostVersion = config["versions"]["Boost"]
 himalayaVersion = config["versions"]["Himalaya"]
 collierVersion = config["versions"]["COLLIER"]
+ltVersion = config["versions"]["LoopTools"]
 
 QUESTION = 'We recommend you install it using your linux disctibution package manager or I can try installing it from source'
 
@@ -43,7 +44,7 @@ def install_cmake():
         sys.exit()
 
 def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools):
-    global eigenPathInc, tmpDir, himalayaVersion, collierVersion
+    global eigenPathInc, tmpDir, himalayaVersion, collierVersion, ltVersion
     fsVersion = config["versions"]["FlexibleSUSY"]
     fsDir = f'FlexibleSUSY-{fsVersion}'
     if not os.path.exists(fsDir):
@@ -87,6 +88,17 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, en
         collierIncPath = '--with-collier-incdir=' + os.path.join(collierPath, 'include')
         collierLibPath = '--with-collier-libdir=' + collierLibPath
 
+    ltLibPath = ''
+    ltIncPath = ''
+    if enableLoopTools:
+        ltPath = os.path.join(depsPath, f'LoopTools-{ltVersion}')
+        if os.path.isdir(os.path.join(ltPath, 'lib')):
+            ltLibPath = os.path.join(ltPath, 'lib')
+        elif os.path.isdir(os.path.join(ltPath, 'lib64')):
+            ltLibPath = os.path.join(ltPath, 'lib64')
+        ltIncPath = '--with-looptools-incdir=' + os.path.join(ltPath, 'include')
+        ltLibPath = '--with-looptools-libdir=' + ltLibPath
+
     enableLoopLibs = ''
     if enableCollier and enableLoopTools:
         enableLoopLibs = '--with-loop-libraries=collier,looptools'
@@ -115,7 +127,7 @@ def install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, en
     for m in args.models.split(','):
         subprocess.call(f'./createmodel -f --name={m}', cwd=fsInstallPath, shell=True)
 
-    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} {enableLoopLibs} {collierLibPath} {collierIncPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
+    subprocess.call(f'./configure --with-models={args.models} {gm2Pathlib} {gm2PathInc} {himalayaIncPath} {himalayaLibPath} {enableLoopLibs} {collierLibPath} {collierIncPath} {ltIncPath} {ltLibPath} --with-eigen-incdir={eigenPathInc} {boostConfig} {gslConfig}', cwd=fsInstallPath, shell=True)
     subprocess.call(f'make -j{int(args.jobs)}', cwd=fsInstallPath, shell=True)
 
 def install_gm2calc(localCMake, localBoost):
@@ -248,6 +260,32 @@ def install_collier(localCMake):
         print('COLLIER installation failed')
         sys.exit()
 
+def install_looptools():
+    global tmpDir, ltVersion
+    installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'LoopTools-{ltVersion}')
+    if os.path.exists(installPath):
+        print(f'LoopTools seems to be already installed locally in {installPath}. ')
+        while True:
+            installLT = input('Do you want to reinstall it? [yes/no]: ')
+            if installLT != "yes" and installLT != "no":
+                print(f'please type yes or no (you typed {installLT})')
+                continue
+            if installLT == "yes":
+                shutil.rmtree(installPath)
+                break
+            elif installLT == "no":
+                return None
+    print('Installing LoopTools...')
+    url = f'https://feynarts.de/looptools/LoopTools-{ltVersion}.tar.gz'
+    urllib.request.urlretrieve(url, os.path.join(tmpDir, f'LoopTools-{ltVersion}.tar.gz'))
+    subprocess.call(f'tar -xf LoopTools-{ltVersion}.tar.gz', cwd=tmpDir, shell=True)
+
+    err = subprocess.run(f'CFLAGS="-O3 -fPIC" CXXFLAGS="-O3 -fPIC" FFLAGS="-O3 -fPIC" ./configure --prefix={installPath} && make && make install', cwd=os.path.join(tmpDir, f'LoopTools-{ltVersion}'), shell=True, capture_output=True)
+    if err.returncode != 0:
+        print(err.stderr)
+        print('LoopTools installation failed')
+        sys.exit()
+
 def install_himalaya(localCMake):
     global tmpDir, eigenPathInc, himalayaVersion
     installPath = os.path.join(pathlib.Path(__file__).parent.resolve(), "FlexibleSUSY-deps", f'Himalaya-{himalayaVersion}')
@@ -361,7 +399,7 @@ if __name__ == '__main__':
 
     enableGM2Calc = False
     while True:
-        installGM2Calc = input('Install GM2Calc? [yes/no]: ')
+        installGM2Calc = input('Include GM2Calc? [yes/no]: ')
         if installGM2Calc != "yes" and installGM2Calc != "no":
             print(f'please type yes or no (you typed {installGM2Calc}')
             continue
@@ -372,7 +410,7 @@ if __name__ == '__main__':
 
     enableHimalaya = False
     while True:
-        installHimalaya = input('Install Himalaya? [yes/no]: ')
+        installHimalaya = input('Include Himalaya? [yes/no]: ')
         if installHimalaya != "yes" and installHimalaya != "no":
             print(f'please type yes or no (you typed {installHimalaya}')
             continue
@@ -383,7 +421,7 @@ if __name__ == '__main__':
 
     enableCollier = False
     while True:
-        installCollier = input('Install Collier? [yes/no]: ')
+        installCollier = input('Include Collier? [yes/no]: ')
         if installCollier != "yes" and installCollier != "no":
             print(f'please type yes or no (you typed {installCollier}')
             continue
@@ -392,4 +430,15 @@ if __name__ == '__main__':
             enableCollier = True
         break
 
-    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, False)
+    enableLoopTools = False
+    while True:
+        installLoopTools = input('Include LoopTools? [yes/no]: ')
+        if installLoopTools != "yes" and installLoopTools != "no":
+            print(f'please type yes or no (you typed {installLoopTools}')
+            continue
+        if installLoopTools == 'yes':
+            install_looptools()
+            enableLoopTools = True
+        break
+
+    install_flexiblesusy(localBoost, localGSL, enableGM2Calc, enableHimalaya, enableCollier, enableLoopTools)
